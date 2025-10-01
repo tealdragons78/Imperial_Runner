@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Empire Runner — Roman Legionary</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel&family=Cinzel+Decorative&family=Roboto+Slab&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; font-family:Georgia,serif; background:#fdf6e3; color:#3b2f1e; text-align:center; transition:background 0.4s, font-family 0.4s; }
+
+  /* Animated bush header */
+  header {
+    padding:16px 20px; border-bottom:3px double #a67c52;
+    background:
+      radial-gradient(circle at 18% 32%, #0b5b21 0 22%, transparent 23%),
+      radial-gradient(circle at 38% 22%, #0b5b21 0 22%, transparent 23%),
+      radial-gradient(circle at 58% 37%, #0b5b21 0 22%, transparent 23%),
+      radial-gradient(circle at 78% 27%, #0b5b21 0 22%, transparent 23%),
+      radial-gradient(circle at 28% 72%, #0b5b21 0 22%, transparent 23%),
+      radial-gradient(circle at 52% 78%, #0b5b21 0 22%, transparent 23%),
+      linear-gradient(#064d1a, #043d14);
+    background-size:200% 200%;
+    animation:bushSway 10s ease-in-out infinite alternate;
+  }
+  @keyframes bushSway { 0%{background-position:0% 0%} 50%{background-position:50% 25%} 100%{background-position:100% 0%} }
+  header h1 { margin:0; color:white; text-shadow:2px 2px 4px #000; font-family:"Cinzel Decorative", serif; }
+
+  /* Level bar */
+  .bar { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; padding:10px; background:#eadfbd; border-bottom:2px solid #a67c52; }
+  .bar button {
+    padding:8px 12px; font-size:14px; background:#f4e9d8;
+    border:2px solid #a67c52; border-radius:6px; cursor:pointer; font-family:"Cinzel", serif;
+    transition:background .2s ease, transform .2s ease;
+  }
+  .bar button:hover { background:#fff8e1; transform:translateY(-1px); }
+
+  /* Canvas */
+  canvas { background:#fff8e1; border:4px solid #d4af37; box-shadow:0 6px 24px rgba(166,124,82,0.35); display:block; margin:16px auto; }
+
+  /* Shop overlay */
+  #shopOverlay {
+    display:none; position:fixed; top:6%; left:50%; transform:translateX(-50%);
+    width:80%; max-width:960px; max-height:86vh; overflow-y:auto; z-index:999;
+    background:linear-gradient(rgba(255,248,225,0.95),rgba(240,220,180,0.95));
+    border:3px solid #d4af37; padding:18px; box-shadow:0 0 24px rgba(166,124,82,0.6); text-align:left;
+  }
+  #shopOverlay h2 { margin:0 0 12px 0; color:#3b2f1e; font-family:"Cinzel Decorative", serif; }
+  .shop-footer { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .pill { display:inline-block; padding:6px 10px; border:1px solid #a67c52; border-radius:12px; background:#fff8e1; font-family:"Cinzel", serif; }
+  .shop-section { margin-top:12px; }
+  .shop-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; }
+  .shop-item { border:1px solid #a67c52; border-radius:8px; padding:10px; background:rgba(255,255,255,0.9); box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+  .shop-item button {
+    width:100%; padding:10px; font-size:15px; font-family:"Cinzel", serif;
+    background:linear-gradient(#fff8e1,#f0e0b0);
+    border:2px solid #a67c52; border-radius:8px; cursor:pointer;
+    transition:all 0.25s ease; box-shadow:0 2px 6px rgba(0,0,0,0.15);
+  }
+  .shop-item button:hover {
+    background:linear-gradient(#fdf6d3,#e6d28c);
+    transform:translateY(-2px);
+    box-shadow:0 4px 10px rgba(0,0,0,0.25);
+  }
+
+  /* Lore popup */
+  #loreBox {
+    display:none; position:absolute; top:20%; left:50%; transform:translateX(-50%);
+    width:70%; background:rgba(255,248,225,0.95); border:3px solid #a67c52;
+    padding:20px; font-family:"Cinzel", serif; font-size:18px; box-shadow:0 0 20px rgba(0,0,0,0.4);
+  }
+</style>
+</head>
+<body>
+<header><h1>🏛️ Imperial Runner</h1></header>
+
+<div class="bar">
+  <button onclick="startLevel('Tutorial')">Tutorial</button>
+  <button onclick="startLevel('Mesopotamia')">Mesmerising Mesopotamia</button>
+  <button onclick="startLevel('Greece')">Glorious Greece</button>
+  <button onclick="startLevel('Rome')">Radiant Rome</button>
+  <button onclick="startLevel('Maya')">Majestic Maya</button>
+  <button onclick="startLevel('Nile')">Noble Nile</button>
+  <button onclick="startLevel('Indus')">Imperial Indus</button>
+  <button onclick="startLevel('Sumer')">Splendid Sumer</button>
+  <button onclick="startLevel('Tenochtitlan')">Timeless Tenochtitlan</button>
+  <button onclick="startLevel('Angkor')">Ancient Angkor</button>
+  <button onclick="startLevel('Egypt')">Eternal Egypt</button>
+  <button onclick="openShop()">🛒 Shop</button>
+  <button class="back-btn" onclick="goBack()">⬅ Back</button>
+</div>
+
+<canvas id="game" width="960" height="480"></canvas>
+<div id="loreBox"></div>
+
+<!-- Shop Overlay -->
+<div id="shopOverlay">
+  <h2>Roman Market — Customizations</h2>
+  <div class="shop-footer">
+    <div class="pill">Coins: <span id="coinCount">500</span></div>
+    <button class="pill" onclick="closeShop()">Close</button>
+  </div>
+
+  <!-- Website accessories (change site font and background theme) -->
+  <div class="shop-section">
+    <h3>Site accessories</h3>
+    <div class="shop-grid">
+      <div class="shop-item"><div>Font: Cinzel — 100</div><button onclick="buyAccessory('font','Cinzel',100)">Buy</button></div>
+      <div class="shop-item"><div>Font: Roboto Slab — 100</div><button onclick="buyAccessory('font','Roboto Slab',100)">Buy</button></div>
+      <div class="shop-item"><div>Background: Parchment — 120</div><button onclick="buyAccessory('bg','#fdf6e3',120)">Buy</button></div>
+      <div class="shop-item"><div>Background: Marble — 150</div><button onclick="buyAccessory('bg','#f0f0f0',150)">Buy</button></div>
+      <div class="shop-item"><div>Background: Night — 150</div><button onclick="buyAccessory('bg','#1c1f24',150)">Buy</button></div>
+    </div>
+  </div>
+
+  <!-- Gameplay cosmetics -->
+  <div class="shop-section">
+    <h3>Plumes</h3>
+    <div class="shop-grid">
+      <div class="shop-item"><div>Blue Plume — 100</div><button onclick="buyItem('plume','blue',100)">Buy</button></div>
+      <div class="shop-item"><div>Black Plume — 100</div><button onclick="buyItem('plume','black',100)">Buy</button></div>
+      <div class="shop-item"><div>White Plume — 120</div><button onclick="buyItem('plume','white',120)">Buy</button></div>
+      <div class="shop-item"><div>Purple Plume — 150</div><button onclick="buyItem('plume','purple',150)">Buy</button></div>
+      <div class="shop-item"><div>Gold Plume — 180</div><button onclick="buyItem('plume','gold',180)">Buy</button></div>
+      <div class="shop-item"><div>Green Plume — 130</div><button onclick="buyItem('plume','green',130)">Buy</button></div>
+    </div>
+  </div>
+
+  <div class="shop-section">
+    <h3>Armor</h3>
+    <div class="shop-grid">
+      <div class="shop-item"><div>Silver Armor — 150</div><button onclick="buyItem('armor','#9e9e9e',150)">Buy</button></div>
+      <div class="shop-item"><div>Gold Armor — 200</div><button onclick="buyItem('armor','#d4af37',200)">Buy</button></div>
+      <div class="shop-item"><div>Obsidian Armor — 220</div><button onclick="buyItem('armor','#2f2f2f',220)">Buy</button></div>
+      <div class="shop-item"><div>Emerald Armor — 250</div><button onclick="buyItem('armor','#2e7d32',250)">Buy</button></div>
+      <div class="shop-item"><div>Marble Armor — 280</div><button onclick="buyItem('armor','#e0e0e0',280)">Buy</button></div>
+      <div class="shop-item"><div>Steel Armor — 240</div><button onclick="buyItem('armor','#7d7d7d',240)">Buy</button></div>
+    </div>
+  </div>
+
+  <div class="shop-section">
+    <h3>Shields</h3>
+    <div class="shop-grid">
+      <div class="shop-item"><div>Rectangular Shield — 120</div><button onclick="buyItem('shield','rect',120)">Buy</button></div>
+      <div class="shop-item"><div>Round Shield — 120</div><button onclick="buyItem('shield','round',120)">Buy</button></div>
+      <div class="shop-item"><div>Eagle Shield — 180</div><button onclick="buyItem('shield','eagle',180)">Buy</button></div>
+      <div class="shop-item"><div>Wolf Shield — 180</div><button onclick="buyItem('shield','wolf',180)">Buy</button></div>
+      <div class="shop-item"><div>Sunburst Shield — 200</div><button onclick="buyItem('shield','sun',200)">Buy</button></div>
+      <div class="shop-item"><div>Laurel Shield — 190</div><button onclick="buyItem('shield','laurel',190)">Buy</button></div>
+    </div>
+  </div>
+
+  <div class="shop-section">
+    <h3>Trails</h3>
+    <div class="shop-grid">
+      <div class="shop-item"><div>Flame — 180</div><button onclick="buyItem('trail','flame',180)">Buy</button></div>
+      <div class="shop-item"><div>Sparkle — 180</div><button onclick="buyItem('trail','sparkle',180)">Buy</button></div>
+      <div class="shop-item"><div>Smoke — 200</div><button onclick="buyItem('trail','smoke',200)">Buy</button></div>
+      <div class="shop-item"><div>Lightning — 220</div><button onclick="buyItem('trail','lightning',220)">Buy</button></div>
+      <div class="shop-item"><div>Rainbow — 250</div><button onclick="buyItem('trail','rainbow',250)">Buy</button></div>
+      <div class="shop-item"><div>Dust — 160</div><button onclick="buyItem('trail','dust',160)">Buy</button></div>
+    </div>
+  </div>
+
+  <div class="shop-section">
+    <h3>Run animations</h3>
+    <div class="shop-grid">
+      <div class="shop-item"><div>Fast — 200</div><button onclick="buyItem('run','fast',200)">Buy</button></div>
+      <div class="shop-item"><div>March — 200</div><button onclick="buyItem('run','march',200)">Buy</button></div>
+      <div class="shop-item"><div>Heroic — 220</div><button onclick="buyItem('run','heroic',220)">Buy</button></div>
+      <div class="shop-item"><div>Goofy — 180</div><button onclick="buyItem('run','goofy',180)">Buy</button></div>
+      <div class="shop-item"><div>Floating — 260</div><button onclick="buyItem('run','floating',260)">Buy</button></div>
+    </div>
+  </div>
+
+  <div class="shop-section">
+    <h3>Extras</h3>
+    <div class="shop-grid">
+      <div class="shop-item"><div>Red Cloak — 140</div><button onclick="buyItem('extra','cloak_red',140)">Buy</button></div>
+      <div class="shop-item"><div>Blue Cloak — 140</div><button onclick="buyItem('extra','cloak_blue',140)">Buy</button></div>
+      <div class="shop-item"><div>Sandals — 120</div><button onclick="buyItem('extra','sandals',120)">Buy</button></div>
+      <div class="shop-item"><div>Banner — 160</div><button onclick="buyItem('extra','banner',160)">Buy</button></div>
+      <div class="shop-item"><div>Laurel Crown — 200</div><button onclick="buyItem('extra','laurel',200)">Buy</button></div>
+      <div class="shop-item"><div>Torch — 180</div><button onclick="buyItem('extra','torch',180)">Buy</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Canvas + state */
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const groundY = 400;
+let player = { x: 140, y: groundY - 80, w: 60, h: 80, vy: 0, jumping: false, phase: 0 };
+let obstacles = [];
+let speed = 8, spawnRate = 95, levelName = 'Tutorial';
+let frame = 0, score = 0, coins = 500, over = false;
+
+let plumeColor = '#c62828';
+let armorColor = '#6b4c2e';
+let shieldType = 'round';
+let trailType = null;
+let runStyle = 'normal';
+let extra = { cloak: null, sandals: false, banner: false, laurel: false, torch: false };
+
+let skyX = 0, houseX = 0;
+
+/* Lore popup */
+function showLore(text) {
+  const box = document.getElementById('loreBox');
+  box.textContent = text;
+  box.style.display = 'block';
+  setTimeout(() => { box.style.display = 'none'; }, 2500);
+}
+
+/* Detailed level themes */
+const levelThemes = {
+  Tutorial: {
+    lore: "The Forum of Beginnings. Learn stride and steel.",
+    speed: 8, spawn: 95,
+    background: () => {
+      ctx.fillStyle = '#e8e0c6'; ctx.fillRect(0,0,canvas.width,groundY);
+      ctx.strokeStyle = '#c2b280';
+      for (let x=0; x<canvas.width; x+=40) { ctx.beginPath(); ctx.moveTo(x, groundY-40); ctx.lineTo(x+20, groundY); ctx.stroke(); }
+    },
+    obstacle: (o) => {
+      ctx.fillStyle = '#8b5a2b';
+      ctx.fillRect(o.x+10, o.y-40, 8, 40);
+      ctx.fillRect(o.x, o.y-25, 28, 6);
+      ctx.beginPath(); ctx.arc(o.x+14, o.y-50, 12, 0, Math.PI*2); ctx.fill();
+    }
+  },
+  Mesopotamia: {
+    lore: "Cradle of Civilization: ziggurats rise in the distance.",
+    speed: 10, spawn: 85,
+    background: () => {
+      ctx.fillStyle = '#c2b280'; ctx.fillRect(0,0,canvas.width,groundY-100);
+      ctx.fillStyle = '#b1905a';
+      for (let i=0; i<5; i++) { ctx.fillRect(100+i*30, groundY-160+i*12, 180-i*40, 12); }
+      drawGround();
+    },
+    obstacle: (o) => { ctx.fillStyle = '#a0522d'; ctx.fillRect(o.x, o.y, o.w, o.h); }
+  },
+  Greece: {
+    lore: "Marble and olive. Amphorae roll to test your grace.",
+    speed: 12, spawn: 76,
+    background: () => {
+      ctx.fillStyle = '#d0e8ff'; ctx.fillRect(0,0,canvas.width,groundY-120);
+      for (let x=50; x<canvas.width; x+=180) {
+        ctx.fillStyle='#8b5a2b'; ctx.fillRect(x, groundY-100, 12, 60);
+        ctx.fillStyle='#2e7d32'; ctx.beginPath(); ctx.arc(x+6, groundY-100, 30, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.fillStyle='#eee'; for (let x=100; x<canvas.width; x+=200) ctx.fillRect(x, groundY-160, 20, 160);
+      drawGround();
+    },
+    obstacle: (o) => {
+      ctx.fillStyle='#9c6b3b';
+      ctx.beginPath(); ctx.ellipse(o.x+14, o.y+16, 14, 20, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle='#7a4f2b'; ctx.fillRect(o.x+8, o.y, 12, 6);
+    }
+  },
+  Rome: {
+    lore: "The Eternal City: arches and aqueducts scroll by.",
+    speed: 14, spawn: 68,
+    background: () => {
+      ctx.fillStyle='#e6d2b5'; ctx.fillRect(0,0,canvas.width,groundY-120);
+      ctx.strokeStyle='#a67c52'; ctx.lineWidth=6;
+      for (let x=40; x<canvas.width; x+=160) { ctx.beginPath(); ctx.arc(x, groundY-100, 40, Math.PI, 0); ctx.stroke(); }
+      drawGround();
+    },
+    obstacle: (o) => { ctx.fillStyle='#654321'; ctx.fillRect(o.x, o.y, o.w, o.h); }
+  },
+  Maya: {
+    lore: "Jungle temples whisper. Leap the fallen stones.",
+    speed: 16, spawn: 62,
+    background: () => {
+      ctx.fillStyle='#cfe8cf'; ctx.fillRect(0,0,canvas.width,groundY-120);
+      ctx.fillStyle='#2e7d32'; for (let x=0; x<canvas.width; x+=80) { ctx.beginPath(); ctx.arc(x+40, groundY-150, 60, 0, Math.PI*2); ctx.fill(); }
+      ctx.fillStyle='#6c4f3d'; for (let i=0; i<5; i++) { ctx.fillRect(600+i*20, groundY-100+i*10, 120-i*40, 10); }
+      drawGround('#a38459');
+    },
+    obstacle: (o) => { ctx.fillStyle='#6c4f3d'; ctx.fillRect(o.x, o.y, o.w, o.h); ctx.strokeStyle='#3b2f1e'; ctx.strokeRect(o.x, o.y, o.w, o.h); }
+  },
+  Nile: {
+    lore: "Papyrus and barges. The river tests swift feet.",
+    speed: 18, spawn: 56,
+    background: () => {
+      ctx.fillStyle='#bde3f7'; ctx.fillRect(0, groundY-160, canvas.width, 60);
+      ctx.fillStyle='#a6d67a'; ctx.fillRect(0, groundY-100, canvas.width, 20);
+      drawGround();
+    },
+    obstacle: (o) => {
+      ctx.fillStyle='#2e7d32'; ctx.fillRect(o.x, o.y+14, o.w, 12);
+      ctx.beginPath(); ctx.moveTo(o.x+o.w, o.y+26); ctx.lineTo(o.x+o.w+12, o.y+22); ctx.lineTo(o.x+o.w, o.y+18); ctx.closePath(); ctx.fill();
+    }
+  },
+  Indus: {
+    lore: "Brick lanes and wells. Dodge the pottery carts.",
+    speed: 20, spawn: 51,
+    background: () => {
+      ctx.fillStyle='#e7c7a9'; ctx.fillRect(0,0,canvas.width,groundY-140);
+      ctx.fillStyle='#c99972'; for (let x=0; x<canvas.width; x+=40) { ctx.fillRect(x, groundY-140, 30, 12); }
+      drawGround();
+    },
+    obstacle: (o) => { ctx.fillStyle='#a86d3d'; ctx.fillRect(o.x, o.y, o.w+8, o.h); }
+  },
+  Sumer: {
+    lore: "Ur’s lyres sing. Offerings become hurdles.",
+    speed: 22, spawn: 47,
+    background: () => {
+      ctx.fillStyle='#d9c6a3'; ctx.fillRect(0,0,canvas.width,groundY-140);
+      ctx.fillStyle='#c3a377'; for (let i=0; i<4; i++) { ctx.fillRect(420+i*22, groundY-180+i*12, 160-i*40, 12); }
+      drawGround();
+    },
+    obstacle: (o) => { ctx.fillStyle='#8d6a3d'; ctx.fillRect(o.x, o.y, o.w, o.h); }
+  },
+  Tenochtitlan: {
+    lore: "Chinampas glide. Obsidian glints at your feet.",
+    speed: 24, spawn: 43,
+    background: () => {
+      ctx.fillStyle='#93c5fd'; ctx.fillRect(0, groundY-160, canvas.width, 60);
+      ctx.fillStyle='#7ba66e'; ctx.fillRect(0, groundY-100, canvas.width, 20);
+      drawGround();
+    },
+    obstacle: (o) => { ctx.fillStyle='#2c2c2c'; ctx.fillRect(o.x, o.y+8, o.w, 8); }
+  },
+  Angkor: {
+    lore: "Stone towers and roots. Naga statues guard the path.",
+    speed: 26, spawn: 40,
+    background: () => {
+      ctx.fillStyle='#c7bca3'; ctx.fillRect(0,0,canvas.width,groundY-140);
+      ctx.fillStyle='#9e8f73'; for (let x=120; x<canvas.width; x+=220) { ctx.fillRect(x, groundY-180, 40, 180); }
+      drawGround();
+    },
+    obstacle: (o) => {
+      ctx.fillStyle='#6f5e46'; ctx.fillRect(o.x, o.y+6, o.w, 24);
+      ctx.beginPath(); ctx.arc(o.x+12, o.y+6, 12, Math.PI, Math.PI*2); ctx.fill();
+    }
+  },
+  Egypt: {
+    lore: "Eternal Egypt. Pyramids loom; mummies rise.",
+    speed: 30, spawn: 36,
+    background: () => {
+      ctx.fillStyle='#f7e6b5'; ctx.fillRect(0,0,canvas.width,groundY-140);
+      ctx.fillStyle='#d9b773';
+      drawPyramid(200, groundY-20, 160);
+      drawPyramid(500, groundY-40, 200);
+      drawPyramid(800, groundY-30, 180);
+      drawGround('#caa36a');
+    },
+    obstacle: (o) => drawMummy(o)
+  }
+};
+
+/* Drawing helpers */
+function drawGround(color = '#c2b280') {
+  ctx.fillStyle = color; ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+  ctx.strokeStyle = 'rgba(107,76,46,0.35)'; ctx.lineWidth = 1;
+  for (let x = 0; x < canvas.width; x += 36) { ctx.beginPath(); ctx.moveTo(x, groundY); ctx.lineTo(x + 24, groundY); ctx.stroke(); }
+}
+function drawPyramid(cx, baseY, size) {
+  ctx.beginPath(); ctx.moveTo(cx, baseY - size); ctx.lineTo(cx - size, baseY); ctx.lineTo(cx + size, baseY); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.stroke();
+}
+function drawMummy(o) {
+  ctx.fillStyle = '#e8e2d6'; ctx.fillRect(o.x + 4, o.y - 40, 20, 40);
+  ctx.fillStyle = '#efe9dc'; ctx.fillRect(o.x + 6, o.y - 56, 16, 16);
+  ctx.strokeStyle = '#cfc7b8'; ctx.lineWidth = 2;
+  for (let y = o.y - 54; y < o.y; y += 6) { ctx.beginPath(); ctx.moveTo(o.x + 6, y); ctx.lineTo(o.x + 22, y + 4); ctx.stroke(); }
+  ctx.fillStyle = '#3b2f1e'; ctx.fillRect(o.x + 9, o.y - 52, 3, 3); ctx.fillRect(o.x + 16, o.y - 52, 3, 3);
+}
+
+/* Game loop */
+requestAnimationFrame(loop);
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+/* Update */
+function update() {
+  frame++;
+  if (over) return;
+
+  player.vy += 1.05; player.y += player.vy;
+  if (player.y > groundY - player.h) { player.y = groundY - player.h; player.vy = 0; player.jumping = false; }
+
+  player.phase += (runStyle === 'fast' ? 0.55 : runStyle === 'march' ? 0.16 : runStyle === 'heroic' ? 0.32 :
+                   runStyle === 'goofy' ? 0.42 : runStyle === 'floating' ? 0.10 : 0.30);
+
+  skyX = (skyX - 0.6 + canvas.width) % canvas.width;
+  houseX = (houseX - Math.max(3, speed * 0.55) + canvas.width) % canvas.width;
+
+  if (frame % spawnRate === 0) {
+    const tall = Math.random() < 0.35;
+    obstacles.push({ x: canvas.width + 20, y: groundY - (tall ? 56 : 36), w: tall ? 36 : 28, h: tall ? 56 : 36 });
+  }
+  obstacles.forEach(o => o.x -= speed);
+  obstacles = obstacles.filter(o => o.x + o.w > 0);
+
+  for (const o of obstacles) {
+    if (rectsCollide(player.x + 8, player.y, player.w - 16, player.h, o.x, o.y, o.w, o.h)) {
+      over = true;
+      coins += Math.floor(score / 100);
+      const cc = document.getElementById('coinCount'); if (cc) cc.textContent = coins;
+      break;
+    }
+  }
+  score++;
+}
+
+/* Draw */
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  levelThemes[levelName].background();
+  obstacles.forEach(o => levelThemes[levelName].obstacle(o));
+  drawSoldier(player.x, player.y, player.w, player.h, player.phase);
+
+  ctx.fillStyle = '#3b2f1e'; ctx.font = '20px Georgia';
+  ctx.fillText(`Level: ${levelName}`, 12, 28);
+  ctx.fillText(`Score: ${score}`, 12, 56);
+  ctx.fillText(`Coins: ${coins}`, 12, 84);
+
+  if (over) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff8e1'; ctx.font = '32px Georgia';
+    ctx.fillText(`Game Over — Score: ${score}`, canvas.width/2 - 200, canvas.height/2 - 10);
+    ctx.font = '24px Georgia'; ctx.fillText(`Press R to Restart`, canvas.width/2 - 120, canvas.height/2 + 30);
+  }
+}
+
+/* Soldier */
+function drawSoldier(x, y, w, h, t) {
+  if (trailType === 'flame') { ctx.fillStyle = 'rgba(255,69,0,0.35)'; ctx.beginPath(); ctx.arc(x - 16, y + h - 18, 14, 0, Math.PI * 2); ctx.fill(); }
+  else if (trailType === 'sparkle') { ctx.fillStyle = 'rgba(255,215,0,0.55)'; for (let i=0;i<3;i++){ ctx.beginPath(); ctx.arc(x - 12 - i * 6, y + h - 28 - i * 6, 6, 0, Math.PI * 2); ctx.fill(); } }
+  else if (trailType === 'smoke') { ctx.fillStyle = 'rgba(100,100,100,0.35)'; ctx.beginPath(); ctx.arc(x - 14, y + h - 22, 10, 0, Math.PI * 2); ctx.fill(); }
+  else if (trailType === 'lightning') { ctx.strokeStyle = 'rgba(173,216,230,0.7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 12, y + h - 24); ctx.lineTo(x - 6, y + h - 30); ctx.lineTo(x - 18, y + h - 36); ctx.stroke(); }
+  else if (trailType === 'rainbow') { const colors=['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa']; colors.forEach((c,i)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x - 10 - i*5, y + h - 24 - i*5, 5, 0, Math.PI*2); ctx.fill(); }); }
+  else if (trailType === 'dust') { ctx.fillStyle = 'rgba(150,120,80,0.5)'; ctx.beginPath(); ctx.arc(x - 14, y + h - 16, 8, 0, Math.PI * 2); ctx.fill(); }
+
+  const swingBase = Math.sin(t);
+  const swing =
+    runStyle === 'march' ? swingBase * 0.4 :
+    runStyle === 'heroic' ? swingBase * 1.1 :
+    runStyle === 'goofy' ? swingBase * 1.3 :
+    runStyle === 'floating' ? swingBase * 0.2 :
+    swingBase * 0.9;
+  const contra = Math.sin(t + Math.PI) * (runStyle === 'floating' ? 0.2 : runStyle === 'march' ? 0.4 : runStyle === 'goofy' ? 1.3 : runStyle === 'heroic' ? 1.1 : 0.9);
+
+  const hipY = y + h * 0.68, hipL = x + w * 0.35, hipR = x + w * 0.65;
+  drawLimb(hipL, hipY, h * 0.22, swing, h * 0.22, swing * 0.6, '#6b4c2e');
+  drawLimb(hipR, hipY, h * 0.22, contra, h * 0.22, contra * 0.6, '#6b4c2e');
+
+  if (extra.cloak) {
+    ctx.fillStyle = extra.cloak === 'red' ? '#a61717' : '#1e88e5';
+    ctx.beginPath(); ctx.moveTo(x + w * 0.68, y + h * 0.35); ctx.quadraticCurveTo(x + w * 0.9, y + h * 0.6, x + w * 0.6, y + h * 0.85); ctx.lineTo(x + w * 0.45, y + h * 0.65); ctx.closePath(); ctx.fill();
+  }
+
+  ctx.fillStyle = armorColor; ctx.fillRect(x + w * 0.3, y + h * 0.32, w * 0.4, h * 0.38);
+  ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2; ctx.strokeRect(x + w * 0.3, y + h * 0.32, w * 0.4, h * 0.38);
+
+  ctx.fillStyle = '#9c2f2f';
+  for (let i=0;i<5;i++){ const sx=x + w * 0.28 + i * w * 0.09; ctx.beginPath(); ctx.moveTo(sx, y + h * 0.70); ctx.lineTo(sx + w * 0.08, y + h * 0.70); ctx.lineTo(sx + w * 0.04, y + h * 0.84); ctx.closePath(); ctx.fill(); }
+
+  const headR = w * 0.16, headCX = x + w * 0.5, headCY = y + h * 0.20;
+  ctx.fillStyle = '#d7c2a4'; ctx.beginPath(); ctx.arc(headCX, headCY, headR, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = armorColor; ctx.beginPath(); ctx.arc(headCX, headCY, headR, Math.PI, 0); ctx.fill();
+  ctx.fillRect(headCX - headR * 0.08, headCY, headR * 0.16, headR * 0.6);
+
+  if (extra.laurel) { ctx.strokeStyle = '#2e7d32'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(headCX, headCY - headR * 0.2, headR * 0.9, Math.PI * 0.7, Math.PI * 0.3); ctx.stroke(); }
+
+  const pc = plumeColor === 'blue' ? '#1e88e5' : plumeColor === 'black' ? '#1b1b1b' : plumeColor === 'white' ? '#f5f5f5' :
+             plumeColor === 'purple' ? '#7b1fa2' : plumeColor === 'gold' ? '#d4af37' : plumeColor === 'green' ? '#2e7d32' : plumeColor;
+  ctx.fillStyle = pc;
+  ctx.beginPath();
+  ctx.moveTo(headCX - headR, headCY - headR * 1.0);
+  ctx.quadraticCurveTo(headCX + Math.sin(t * 0.5) * 6, headCY - headR * 1.6, headCX + headR, headCY - headR * 1.0);
+  ctx.quadraticCurveTo(headCX, headCY - headR * 1.4, headCX - headR, headCY - headR * 1.0);
+  ctx.fill();
+
+  const shoulderY = y + h * 0.40, shoulderL = x + w * 0.32, shoulderR = x + w * 0.68;
+  drawArm(shoulderL, shoulderY, h * 0.18, swing * 0.3, h * 0.16, swing * 0.2, '#d7c2a4');
+  drawArm(shoulderR, shoulderY, h * 0.18, contra * 0.8, h * 0.16, contra * 1.0, '#d7c2a4');
+
+  ctx.fillStyle = '#8d6a3d';
+  if (shieldType === 'rect') {
+    ctx.fillRect(x + w * 0.16, y + h * 0.44, w * 0.18, h * 0.30);
+    ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 3; ctx.strokeRect(x + w * 0.16, y + h * 0.44, w * 0.18, h * 0.30);
+  } else {
+    ctx.beginPath(); ctx.arc(x + w * 0.22, y + h * 0.54, w * 0.22, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 3; ctx.stroke();
+    if (['eagle','wolf','sun','laurel'].includes(shieldType)) {
+      ctx.strokeStyle = '#4d3520'; ctx.lineWidth = 2; ctx.beginPath();
+      if (shieldType === 'eagle') { ctx.arc(x + w * 0.22, y + h * 0.54, w * 0.12, Math.PI * 0.1, Math.PI * 0.9); ctx.moveTo(x + w * 0.14, y + h * 0.50); ctx.lineTo(x + w * 0.30, y + h * 0.58); }
+      else if (shieldType === 'wolf') { ctx.moveTo(x + w * 0.16, y + h * 0.50); ctx.lineTo(x + w * 0.28, y + h * 0.58); ctx.moveTo(x + w * 0.28, y + h * 0.50); ctx.lineTo(x + w * 0.16, y + h * 0.58); }
+      else if (shieldType === 'sun') { for (let a=0;a<8;a++){ const ang=a*(Math.PI/4); ctx.moveTo(x + w * 0.22, y + h * 0.54); ctx.lineTo(x + w * 0.22 + Math.cos(ang)*w*0.12, y + h * 0.54 + Math.sin(ang)*w*0.12); } }
+      else if (shieldType === 'laurel') { ctx.arc(x + w * 0.22, y + h * 0.54, w * 0.12, Math.PI * 0.3, Math.PI * 0.7); }
+      ctx.stroke();
+    }
+  }
+
+  const swordX = shoulderR + Math.cos(contra * 0.8) * h * 0.18 + Math.cos(contra * 1.0) * h * 0.16;
+  const swordY = shoulderY + Math.sin(contra * 0.8) * h * 0.18 + Math.sin(contra * 1.0) * h * 0.16;
+  ctx.strokeStyle = '#a0a0a0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(swordX, swordY); ctx.lineTo(swordX + 18, swordY - 8); ctx.stroke();
+
+  if (extra.torch) {
+    const handX = shoulderL + Math.cos(swing * 0.3) * h * 0.18 + Math.cos(swing * 0.2) * h * 0.16;
+    const handY = shoulderY + Math.sin(swing * 0.3) * h * 0.18 + Math.sin(swing * 0.2) * h * 0.16;
+    ctx.strokeStyle = '#7b4a1d'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(handX, handY); ctx.lineTo(handX, handY - 22); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,140,0,0.75)'; ctx.beginPath(); ctx.arc(handX, handY - 26, 10, 0, Math.PI * 2); ctx.fill();
+  }
+
+  if (extra.sandals) { ctx.fillStyle = '#6d4c41'; ctx.fillRect(x + w * 0.30, y + h * 0.86, 12, 6); ctx.fillRect(x + w * 0.58, y + h * 0.86, 12, 6); }
+  if (extra.banner) { ctx.strokeStyle = '#7b4a1d'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x + w * 0.78, y + h * 0.30); ctx.lineTo(x + w * 0.78, y + h * 0.70); ctx.stroke(); ctx.fillStyle = '#b22222'; ctx.fillRect(x + w * 0.78, y + h * 0.30, 24, 18); }
+}
+
+/* HUD helpers */
+function drawLimb(x, y, len1, a1, len2, a2, color) {
+  ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  const k1x = x + Math.cos(a1) * len1, k1y = y + Math.sin(a1) * len1;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(k1x, k1y); ctx.stroke();
+  const k2x = k1x + Math.cos(a2) * len2, k2y = k1y + Math.sin(a2) * len2;
+  ctx.beginPath(); ctx.moveTo(k1x, k1y); ctx.lineTo(k2x, k2y); ctx.stroke();
+}
+function drawArm(x, y, len1, a1, len2, a2, color) {
+  ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  const k1x = x + Math.cos(a1) * len1, k1y = y + Math.sin(a1) * len1;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(k1x, k1y); ctx.stroke();
+  const k2x = k1x + Math.cos(a2) * len2, k2y = k1y + Math.sin(a2) * len2;
+  ctx.beginPath(); ctx.moveTo(k1x, k1y); ctx.lineTo(k2x, k2y); ctx.stroke();
+}
+function rectsCollide(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
+/* Controls */
+document.addEventListener('keydown', (e) => {
+  if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !over) { player.vy = -20; player.jumping = true; }
+  if (e.code === 'KeyR' && over) { over = false; player.y = groundY - player.h; player.vy = 0; player.jumping = false; player.phase = 0; obstacles = []; frame = 0; score = 0; }
+  if (e.code === 'Escape') { closeShop(); }
+});
+
+/* Public API for buttons (global bindings) */
+window.startLevel = function(name) {
+  const theme = levelThemes[name];
+  if (!theme) return;
+  levelName = name;
+  speed = theme.speed; spawnRate = theme.spawn;
+  over = false;
+  player.y = groundY - player.h; player.vy = 0; player.jumping = false; player.phase = 0;
+  obstacles = []; frame = 0; score = 0;
+  showLore(theme.lore);
+};
+window.openShop = function() { document.getElementById('shopOverlay').style.display = 'block'; };
+window.closeShop = function() { document.getElementById('shopOverlay').style.display = 'none'; };
+window.buyItem = function(kind, value, cost) {
+  if (coins < cost) { alert('Not enough coins'); return; }
+  coins -= cost; const cc = document.getElementById('coinCount'); if (cc) cc.textContent = coins;
+  switch (kind) {
+    case 'plume':
+      plumeColor = value === 'blue' ? '#1e88e5' : value === 'black' ? '#1b1b1b' : value === 'white' ? '#f5f5f5' :
+                   value === 'purple' ? '#7b1fa2' : value === 'gold' ? '#d4af37' : value === 'green' ? '#2e7d32' : plumeColor; break;
+    case 'armor': armorColor = value; break;
+    case 'shield': shieldType = value; break;
+    case 'trail': trailType = value; break;
+    case 'run': runStyle = value; break;
+    case 'extra':
+      if (value === 'cloak_red') extra.cloak = 'red';
+      else if (value === 'cloak_blue') extra.cloak = 'blue';
+      else if (value === 'sandals') extra.sandals = true;
+      else if (value === 'banner') extra.banner = true;
+      else if (value === 'laurel') extra.laurel = true;
+      else if (value === 'torch') extra.torch = true;
+      break;
+  }
+};
+window.buyAccessory = function(type, value, cost) {
+  if (coins < cost) { alert('Not enough coins'); return; }
+  coins -= cost; const cc = document.getElementById('coinCount'); if (cc) cc.textContent = coins;
+  if (type === 'font') {
+    document.body.style.fontFamily = value + ', serif';
+  } else if (type === 'bg') {
+    document.body.style.background = value;
+    document.body.style.color = (value === '#1c1f24') ? '#e8e6e3' : '#3b2f1e';
+  }
+};
+
+
+</script>
+
+
+<script>
+function goBack() {
+  // Change "UI1.html" to whatever page you want the back button to lead to
+  window.location.href = "UI1.html";
+}
+</script>
+
+</body>
+</html>
